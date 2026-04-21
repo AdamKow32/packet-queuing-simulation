@@ -1,17 +1,16 @@
-/*
+/**
  * @file packet.h
  * @brief Core data types for the packet simulator
  *
  * @date 15.04.2026
  */
-#ifndef PACKET_H
-#define PACKET_H
+#pragma once
 #include <chrono>
 #include <cstdint>
 #include <ostream>
 namespace netsim {
     // Simulation time unit - microseconds
-    using simTime = std::chrono::microseconds;
+    using SimTime = std::chrono::microseconds;
 
     enum class QoSClass : uint8_t {
         Voice = 0,  // Real time audio - low latency, small fixed-sized frames
@@ -35,10 +34,9 @@ namespace netsim {
 
     const char* qos_name(QoSClass cls);
 
-    SimTime wait_time(const Packet& p);
+    SimTime wait_time(const Packet& p); // how long packet sat in queue doing nothing
 
-    SimTime sojourn_time(const Packet& p);
+    SimTime sojourn_time(const Packet& p); // total time from arrival until it finished transmitting
 
     std::ostream& operator<<(std::ostream& os, const Packet& p);
 }
-#endif //PACKET_H

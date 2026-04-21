@@ -9,6 +9,8 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_executable(packet_sim
         src/main.cpp
+        src/packet.cpp
+        src/packet.h
 )
 
 target_include_directories(packet_sim PRIVATE src)

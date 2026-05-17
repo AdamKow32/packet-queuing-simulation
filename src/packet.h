@@ -22,14 +22,14 @@ namespace netsim {
     static constexpr int NUM_QOS_CLASSES = 3;
 
     struct Packet {
-        uint32_t id;            // Unique identifier increasing
-        QoSClass qos_class;     // Traffic class, determines the scheduling priority
-        uint32_t size_bytes;    // Payload size in bytes
-        SimTime arrival_time;   // when this packet arrives at router
+        uint32_t id{0};                 // Unique identifier increasing
+        QoSClass qos_class{QoSClass::HTTP}; // Traffic class, determines the scheduling priority
+        uint32_t size_bytes{0};         // Payload size in bytes
+        SimTime arrival_time{};         // when this packet arrives at router
 
-        bool dropped;           // was this packet dropped by scheduler?
-        SimTime dequeue_time;   // when does packet leave the queue?
-        SimTime departure_time; // when does packet finish transmitting?
+        bool dropped{false};           // was this packet dropped by scheduler?
+        SimTime dequeue_time{};        // when does packet leave the queue?
+        SimTime departure_time{};      // when does packet finish transmitting?
     };
 
     const char* qos_name(QoSClass cls);

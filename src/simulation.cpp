@@ -66,7 +66,12 @@ namespace netsim {
     }
 
     void Simulation::handle_packet_arrival(uint32_t packet_id) {
-        scheduler_->enqueue(packet_id);
+        const bool accepted = scheduler_->enqueue(packet_id);
+
+        if (!accepted) {
+            packet_by_id(packet_id).dropped = true;
+        }
+
         try_start_transmission();
     }
 

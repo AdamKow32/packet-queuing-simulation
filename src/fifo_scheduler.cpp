@@ -3,8 +3,16 @@
 #include <stdexcept>
 
 namespace netsim {
-    void FifoScheduler::enqueue(uint32_t packet_id) {
+
+    FifoScheduler::FifoScheduler(size_t max_size)
+    : max_size_(max_size) {}
+
+    bool FifoScheduler::enqueue(uint32_t packet_id) {
+        if (max_size_ > 0 && queue_.size() >= max_size_) {
+            return false;
+        }
         queue_.push(packet_id);
+        return true;
     }
 
     bool FifoScheduler::has_packets() const {

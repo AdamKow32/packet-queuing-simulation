@@ -20,6 +20,7 @@ add_executable(packet_sim
         src/simulation.h
         src/traffic_generator.h
         src/statistics.h
+        src/statistics.cpp
 )
 
 target_include_directories(packet_sim PRIVATE src)

@@ -18,6 +18,7 @@ namespace netsim {
     };
 
     class StatisticsCollector {
+    public:
         void record(const Packet& packet);
 
 

@@ -4,16 +4,20 @@
 #include <stdexcept>
 
 namespace netsim {
-    Simulation::Simulation(std::unique_ptr<IScheduler> scheduler, double link_rate_mbps)
-        : scheduler_(std::move(scheduler)),
-          link_rate_mbps_(link_rate_mbps) {
+
+    Simulation::Simulation(std::unique_ptr<IScheduler> scheduler,
+                           DropConfig                  drop_config,
+                           double                      link_rate_mbps)
+        : scheduler_(std::move(scheduler))
+        , drop_config_(drop_config)
+        , link_rate_mbps_(link_rate_mbps) {
         if (!scheduler_) {
             throw std::invalid_argument("Simulation requires a scheduler");
         }
-
         if (link_rate_mbps_ <= 0.0) {
             throw std::invalid_argument("Link rate must be positive");
         }
+        queue_sizes_.fill(0);
     }
 
     void Simulation::add_packet(Packet packet) {
@@ -66,7 +70,19 @@ namespace netsim {
     }
 
     void Simulation::handle_packet_arrival(uint32_t packet_id) {
+        Packet& packet = packet_by_id(packet_id);
+        const ClassDropConfig& cfg = drop_config_.for_class(packet.qos_class);
+        const size_t cls_index = static_cast<size_t>(packet.qos_class);
+
+        if (cfg.max_queue_size > 0 &&
+            queue_sizes_[cls_index] >= cfg.max_queue_size) {
+            packet.dropped = true;
+            return;
+        }
+
         scheduler_->enqueue(packet_id);
+        queue_sizes_[cls_index]++;
+
         try_start_transmission();
     }
 
@@ -86,10 +102,22 @@ namespace netsim {
         }
 
         const uint32_t packet_id = scheduler_->dequeue_next();
-
         Packet& packet = packet_by_id(packet_id);
-        packet.dequeue_time = current_time_;
+        const size_t cls_index = static_cast<size_t>(packet.qos_class);
+        const ClassDropConfig& cfg = drop_config_.for_class(packet.qos_class);
 
+        queue_sizes_[cls_index]--;
+
+        if (cfg.max_wait_time > SimTime{0}) {
+            const SimTime wait = current_time_ - packet.arrival_time;
+            if (wait > cfg.max_wait_time) {
+                packet.dropped = true;
+                try_start_transmission();
+                return;
+            }
+        }
+
+        packet.dequeue_time = current_time_;
         transmitter_busy_ = true;
         current_packet_id_ = packet_id;
 
@@ -105,7 +133,6 @@ namespace netsim {
         if (it == packet_index_.end()) {
             throw std::out_of_range("Unknown packet id");
         }
-
         return packets_.at(it->second);
     }
 
@@ -114,15 +141,14 @@ namespace netsim {
         if (it == packet_index_.end()) {
             throw std::out_of_range("Unknown packet id");
         }
-
         return packets_.at(it->second);
     }
 
     SimTime Simulation::transmission_time_for(const Packet& packet) const {
-        // 1 Mb/s equals 1 bit/us, so the configured rate can be used as bits per microsecond.
         const double bits_to_send = static_cast<double>(packet.size_bytes) * 8.0;
         const double duration_us = bits_to_send / link_rate_mbps_;
         const auto rounded_up_us = static_cast<int64_t>(std::ceil(duration_us));
         return SimTime{rounded_up_us > 0 ? rounded_up_us : 1};
     }
+
 }

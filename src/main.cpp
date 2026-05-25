@@ -1,26 +1,61 @@
 #include <iostream>
+#include <functional>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "fifo_scheduler.h"
+#include "lifo_scheduler.h"
 #include "simulation.h"
 #include "statistics.h"
 #include "traffic_generator.h"
 
-int main() {
-    const double link_rate_mbps = 100.0;
-    netsim::DropConfig drop_config;
-    drop_config.voice = { 10,  netsim::SimTime{150'000} };
-    drop_config.http  = { 50,  netsim::SimTime{500'000} };
-    drop_config.file  = { 100, netsim::SimTime{0}       };
+namespace {
+    struct SchedulerRunConfig {
+        std::string name;
+        bool enabled;
+        std::function<std::unique_ptr<netsim::IScheduler>()> create_scheduler;
+    };
 
-    auto scheduler = std::make_unique<netsim::FifoScheduler>();
-    netsim::Simulation simulation(std::move(scheduler), drop_config, link_rate_mbps);
+    void run_scheduler(const SchedulerRunConfig& scheduler_config,
+                       const std::vector<netsim::Packet>& packets,
+                       const netsim::DropConfig& drop_config,
+                       double link_rate_mbps) {
+        auto scheduler = scheduler_config.create_scheduler();
+        netsim::Simulation simulation(std::move(scheduler), drop_config, link_rate_mbps);
+
+        for (const netsim::Packet& packet : packets) {
+            simulation.add_packet(packet);
+        }
+
+        simulation.run();
+
+        netsim::StatisticsCollector stats;
+        for (const netsim::Packet& packet : simulation.packets()) {
+            stats.record(packet);
+        }
+
+        std::cout << "\n=== " << scheduler_config.name << " ===\n";
+        stats.print_summary();
+
+        const std::string csv_name = "results_" + scheduler_config.name + ".csv";
+        stats.write_csv(csv_name);
+        std::cout << "Results written to " << csv_name << "\n";
+    }
+}
+
+int main() {
+    const double link_rate_mbps = 10.0;
+    netsim::DropConfig drop_config;
+    drop_config.voice = { 35, netsim::SimTime{50'000} };
+    drop_config.http  = { 45, netsim::SimTime{70'000} };
+    drop_config.file  = { 45, netsim::SimTime{90'000} };
 
     const netsim::TrafficProfile profile{
-        100,  // packet_count
+        180,  // packet_count
         42,   // seed
-        100,  // min_interarrival_us
-        800,  // max_interarrival_us
+        45,   // min_interarrival_us
+        140,  // max_interarrival_us
         80,   // voice_min_size_bytes
         200,  // voice_max_size_bytes
         500,  // http_min_size_bytes
@@ -37,19 +72,24 @@ int main() {
 
     std::cout << "Generated " << packets.size() << " packets\n";
 
-    for (const netsim::Packet& packet : packets) {
-        simulation.add_packet(packet);
-    }
+    const std::vector<SchedulerRunConfig> scheduler_runs{
+        {
+            "fifo", true,
+            [] { return std::make_unique<netsim::FifoScheduler>(); }
+        },
+        {
+            "lifo", true,
+            [] { return std::make_unique<netsim::LifoScheduler>(); }
+        }
+    };
 
-    simulation.run();
-    netsim::StatisticsCollector stats;
-    for (const netsim::Packet& packet : simulation.packets()) {
-        stats.record(packet);
-    }
+    for (const SchedulerRunConfig& scheduler_config : scheduler_runs) {
+        if (!scheduler_config.enabled) {
+            continue;
+        }
 
-    stats.print_summary();
-    stats.write_csv("results.csv");
-    std::cout << "Results written to results.csv\n";
+        run_scheduler(scheduler_config, packets, drop_config, link_rate_mbps);
+    }
 
     return 0;
 }

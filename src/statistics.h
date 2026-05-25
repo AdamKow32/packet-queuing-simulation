@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <string>
 #include "packet.h"
 
 namespace netsim {

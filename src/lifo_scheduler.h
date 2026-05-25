@@ -8,7 +8,7 @@
 namespace netsim {
     class LifoScheduler final : public IScheduler {
     public:
-        void enqueue(uint32_t packet_id) override;
+        void enqueue(uint32_t packet_id, QoSClass qos_class) override;
         bool has_packets() const override;
         uint32_t dequeue_next() override;
 

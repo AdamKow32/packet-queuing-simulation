@@ -10,6 +10,7 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 add_executable(packet_sim
         src/fifo_scheduler.cpp
         src/lifo_scheduler.cpp
+        src/priority_scheduler.cpp
         src/main.cpp
         src/simulation.cpp
         src/packet.cpp
@@ -18,6 +19,7 @@ add_executable(packet_sim
         src/fifo_scheduler.h
         src/lifo_scheduler.h
         src/packet.h
+        src/priority_scheduler.h
         src/scheduler.h
         src/simulation.h
         src/traffic_generator.h

@@ -3,7 +3,8 @@
 #include <stdexcept>
 
 namespace netsim {
-    void LifoScheduler::enqueue(uint32_t packet_id) {
+    void LifoScheduler::enqueue(uint32_t packet_id, QoSClass qos_class) {
+        (void)qos_class;
         stack_.push_back(packet_id);
     }
 

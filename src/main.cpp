@@ -6,6 +6,7 @@
 
 #include "fifo_scheduler.h"
 #include "lifo_scheduler.h"
+#include "priority_scheduler.h"
 #include "simulation.h"
 #include "statistics.h"
 #include "traffic_generator.h"
@@ -80,6 +81,10 @@ int main() {
         {
             "lifo", true,
             [] { return std::make_unique<netsim::LifoScheduler>(); }
+        },
+        {
+            "priority", true,
+            [] { return std::make_unique<netsim::PriorityScheduler>(); }
         }
     };
 

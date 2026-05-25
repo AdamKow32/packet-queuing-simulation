@@ -3,7 +3,8 @@
 #include <stdexcept>
 
 namespace netsim {
-    void FifoScheduler::enqueue(uint32_t packet_id) {
+    void FifoScheduler::enqueue(uint32_t packet_id, QoSClass qos_class) {
+        (void)qos_class;
         queue_.push(packet_id);
     }
 

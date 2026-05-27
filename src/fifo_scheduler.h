@@ -8,7 +8,8 @@
 namespace netsim {
     class FifoScheduler final : public IScheduler {
     public:
-        void enqueue(uint32_t packet_id, QoSClass qos_class) override;
+        using IScheduler::enqueue;
+        void enqueue(uint32_t packet_id, QoSClass qos_class, uint32_t size_bytes) override;
         bool has_packets() const override;
         uint32_t dequeue_next() override;
 

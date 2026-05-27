@@ -80,7 +80,7 @@ namespace netsim {
             return;
         }
 
-        scheduler_->enqueue(packet_id, packet.qos_class);
+        scheduler_->enqueue(packet_id, packet.qos_class, packet.size_bytes);
         queue_sizes_[cls_index]++;
 
         try_start_transmission();

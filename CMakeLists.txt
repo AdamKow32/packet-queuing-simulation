@@ -8,13 +8,16 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_executable(packet_sim
+        src/cbwfq_scheduler.cpp
         src/fifo_scheduler.cpp
         src/lifo_scheduler.cpp
         src/priority_scheduler.cpp
+        src/weighted_round_robin_scheduler.cpp
         src/main.cpp
         src/simulation.cpp
         src/packet.cpp
         src/traffic_generator.cpp
+        src/cbwfq_scheduler.h
         src/event.h
         src/fifo_scheduler.h
         src/lifo_scheduler.h
@@ -23,6 +26,7 @@ add_executable(packet_sim
         src/scheduler.h
         src/simulation.h
         src/traffic_generator.h
+        src/weighted_round_robin_scheduler.h
         src/statistics.h
         src/statistics.cpp
 )

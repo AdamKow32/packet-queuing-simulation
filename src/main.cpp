@@ -4,12 +4,14 @@
 #include <string>
 #include <vector>
 
+#include "cbwfq_scheduler.h"
 #include "fifo_scheduler.h"
 #include "lifo_scheduler.h"
 #include "priority_scheduler.h"
 #include "simulation.h"
 #include "statistics.h"
 #include "traffic_generator.h"
+#include "weighted_round_robin_scheduler.h"
 
 namespace {
     struct SchedulerRunConfig {
@@ -85,6 +87,14 @@ int main() {
         {
             "priority", true,
             [] { return std::make_unique<netsim::PriorityScheduler>(); }
+        },
+        {
+            "wrr", true,
+            [] { return std::make_unique<netsim::WeightedRoundRobinScheduler>(); }
+        },
+        {
+            "cbwfq", true,
+            [] { return std::make_unique<netsim::CbwfqScheduler>(); }
         }
     };
 

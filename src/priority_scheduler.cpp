@@ -3,7 +3,8 @@
 #include <stdexcept>
 
 namespace netsim {
-    void PriorityScheduler::enqueue(uint32_t packet_id, QoSClass qos_class) {
+    void PriorityScheduler::enqueue(uint32_t packet_id, QoSClass qos_class, uint32_t size_bytes) {
+        (void)size_bytes;
         queues_[static_cast<std::size_t>(qos_class)].push(packet_id);
     }
 

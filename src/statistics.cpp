@@ -47,6 +47,10 @@ namespace netsim {
         }
 
         sum_wait_time_us_ += wait_us;
+        sum_sojourn_time_us_ += sojourn_us;
+        if (wait_us > max_wait_time_us_) {
+            max_wait_time_us_ = wait_us;
+        }
     }
 
     const ClassStats& StatisticsCollector::stats_for(QoSClass cls) const {
@@ -63,6 +67,16 @@ namespace netsim {
         const uint32_t transmitted = total_packets_ - total_dropped_;
         if (transmitted == 0) return 0.0;
         return sum_wait_time_us_ / static_cast<double>(transmitted);
+    }
+
+    double StatisticsCollector::overall_avg_sojourn_time_us() const {
+        const uint32_t transmitted = total_packets_ - total_dropped_;
+        if (transmitted == 0) return 0.0;
+        return sum_sojourn_time_us_ / static_cast<double>(transmitted);
+    }
+
+    double StatisticsCollector::overall_max_wait_time_us() const {
+        return max_wait_time_us_;
     }
 
     void StatisticsCollector::print_summary() const {

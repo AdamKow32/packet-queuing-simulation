@@ -30,6 +30,8 @@ namespace netsim {
 
 
         double overall_avg_wait_time_us() const;
+        double overall_avg_sojourn_time_us() const;
+        double overall_max_wait_time_us() const;
 
 
         void print_summary() const;
@@ -46,5 +48,7 @@ namespace netsim {
         uint32_t total_packets_{0};
         uint32_t total_dropped_{0};
         double   sum_wait_time_us_{0.0};
+        double   sum_sojourn_time_us_{0.0};
+        double   max_wait_time_us_{0.0};
     };
 }

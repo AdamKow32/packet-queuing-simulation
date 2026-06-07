@@ -4,6 +4,22 @@
 #include <stdexcept>
 
 namespace netsim {
+    const char* trace_event_name(TraceEventType type) {
+        switch (type) {
+            case TraceEventType::ArrivalAccepted:
+                return "arrival_accepted";
+            case TraceEventType::DropQueueLimit:
+                return "drop_queue_limit";
+            case TraceEventType::TransmissionStart:
+                return "transmission_start";
+            case TraceEventType::TransmissionComplete:
+                return "transmission_complete";
+            case TraceEventType::DropWaitTimeout:
+                return "drop_wait_timeout";
+            default:
+                return "unknown";
+        }
+    }
 
     Simulation::Simulation(std::unique_ptr<IScheduler> scheduler,
                            DropConfig                  drop_config,
@@ -49,6 +65,10 @@ namespace netsim {
         return packets_;
     }
 
+    const std::vector<TimelineEntry>& Simulation::timeline() const {
+        return timeline_;
+    }
+
     void Simulation::schedule_event(const Event& event) {
         events_.push(event);
     }
@@ -77,11 +97,14 @@ namespace netsim {
         if (cfg.max_queue_size > 0 &&
             queue_sizes_[cls_index] >= cfg.max_queue_size) {
             packet.dropped = true;
+            dropped_so_far_++;
+            record_timeline_event(TraceEventType::DropQueueLimit, packet);
             return;
         }
 
         scheduler_->enqueue(packet_id, packet.qos_class, packet.size_bytes);
         queue_sizes_[cls_index]++;
+        record_timeline_event(TraceEventType::ArrivalAccepted, packet);
 
         try_start_transmission();
     }
@@ -89,6 +112,9 @@ namespace netsim {
     void Simulation::handle_transmission_complete(uint32_t packet_id) {
         Packet& packet = packet_by_id(packet_id);
         packet.departure_time = current_time_;
+        transmitted_so_far_++;
+        sum_wait_time_us_completed_ += static_cast<double>(wait_time(packet).count());
+        record_timeline_event(TraceEventType::TransmissionComplete, packet, static_cast<double>(wait_time(packet).count()));
 
         transmitter_busy_ = false;
         current_packet_id_.reset();
@@ -112,6 +138,8 @@ namespace netsim {
             const SimTime wait = current_time_ - packet.arrival_time;
             if (wait > cfg.max_wait_time) {
                 packet.dropped = true;
+                dropped_so_far_++;
+                record_timeline_event(TraceEventType::DropWaitTimeout, packet, static_cast<double>(wait.count()));
                 try_start_transmission();
                 return;
             }
@@ -120,6 +148,7 @@ namespace netsim {
         packet.dequeue_time = current_time_;
         transmitter_busy_ = true;
         current_packet_id_ = packet_id;
+        record_timeline_event(TraceEventType::TransmissionStart, packet, static_cast<double>(wait_time(packet).count()));
 
         schedule_event(Event{
             current_time_ + transmission_time_for(packet),
@@ -149,6 +178,33 @@ namespace netsim {
         const double duration_us = bits_to_send / link_rate_mbps_;
         const auto rounded_up_us = static_cast<int64_t>(std::ceil(duration_us));
         return SimTime{rounded_up_us > 0 ? rounded_up_us : 1};
+    }
+
+    void Simulation::record_timeline_event(TraceEventType event_type,
+                                           const Packet& packet,
+                                           double current_packet_wait_us) {
+        timeline_.push_back(TimelineEntry{
+            current_time_,
+            event_type,
+            packet.id,
+            packet.qos_class,
+            packet.size_bytes,
+            queue_sizes_[static_cast<std::size_t>(QoSClass::Voice)],
+            queue_sizes_[static_cast<std::size_t>(QoSClass::HTTP)],
+            queue_sizes_[static_cast<std::size_t>(QoSClass::File)],
+            transmitted_so_far_,
+            dropped_so_far_,
+            current_packet_wait_us,
+            avg_wait_so_far_us()
+        });
+    }
+
+    double Simulation::avg_wait_so_far_us() const {
+        if (transmitted_so_far_ == 0U) {
+            return 0.0;
+        }
+
+        return sum_wait_time_us_completed_ / static_cast<double>(transmitted_so_far_);
     }
 
 }

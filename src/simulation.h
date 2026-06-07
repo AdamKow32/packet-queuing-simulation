@@ -13,6 +13,31 @@
 #include "scheduler.h"
 
 namespace netsim {
+    enum class TraceEventType : uint8_t {
+        ArrivalAccepted = 0,
+        DropQueueLimit = 1,
+        TransmissionStart = 2,
+        TransmissionComplete = 3,
+        DropWaitTimeout = 4
+    };
+
+    struct TimelineEntry {
+        SimTime time{};
+        TraceEventType event_type{TraceEventType::ArrivalAccepted};
+        uint32_t packet_id{0};
+        QoSClass qos_class{QoSClass::HTTP};
+        uint32_t size_bytes{0};
+        size_t queue_voice{0};
+        size_t queue_http{0};
+        size_t queue_file{0};
+        uint32_t transmitted_so_far{0};
+        uint32_t dropped_so_far{0};
+        double current_packet_wait_us{0.0};
+        double avg_wait_so_far_us{0.0};
+    };
+
+    const char* trace_event_name(TraceEventType type);
+
     struct ClassDropConfig {
         size_t  max_queue_size;
         SimTime max_wait_time;
@@ -42,6 +67,7 @@ namespace netsim {
 
         SimTime current_time() const;
         const std::vector<Packet>& packets() const;
+        const std::vector<TimelineEntry>& timeline() const;
 
     private:
         void schedule_event(const Event& event);
@@ -50,6 +76,10 @@ namespace netsim {
         void handle_transmission_complete(uint32_t packet_id);
         void try_start_transmission();
         SimTime transmission_time_for(const Packet& packet) const;
+        void record_timeline_event(TraceEventType event_type,
+                                   const Packet& packet,
+                                   double current_packet_wait_us = 0.0);
+        double avg_wait_so_far_us() const;
 
         Packet& packet_by_id(uint32_t packet_id);
         const Packet& packet_by_id(uint32_t packet_id) const;
@@ -59,11 +89,15 @@ namespace netsim {
         SimTime current_time_{SimTime::zero()};
         std::priority_queue<Event, std::vector<Event>, EventCompare> events_;
         std::vector<Packet> packets_;
+        std::vector<TimelineEntry> timeline_;
         std::unordered_map<uint32_t, std::size_t> packet_index_;
         std::unique_ptr<IScheduler> scheduler_;
         DropConfig drop_config_;
         double link_rate_mbps_{100.0};
         bool transmitter_busy_{false};
         std::optional<uint32_t> current_packet_id_{};
+        uint32_t transmitted_so_far_{0};
+        uint32_t dropped_so_far_{0};
+        double sum_wait_time_us_completed_{0.0};
     };
 }

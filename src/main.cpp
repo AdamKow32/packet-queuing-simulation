@@ -145,6 +145,8 @@ int main() {
     const std::filesystem::path timeline_dir = "timeline_results";
     std::filesystem::create_directories(timeline_dir);
     initialize_summary_csv(summary_path);
+    const netsim::DropConfig common_drop_config =
+        make_drop_config(40, 40'000, 45, 75'000, 50, 110'000);
 
     const std::vector<SchedulerRunConfig> scheduler_runs{
         {
@@ -187,8 +189,28 @@ int main() {
                 35,   // http_weight
                 30    // file_weight
             },
-            make_drop_config(60, 70'000, 70, 120'000, 90, 0),
+            common_drop_config,
             20.0
+        },
+        {
+            "medium_load", true,
+            netsim::TrafficProfile{
+                220,  // packet_count
+                52,   // seed
+                125,  // min_interarrival_us
+                285,  // max_interarrival_us
+                80,   // voice_min_size_bytes
+                200,  // voice_max_size_bytes
+                500,  // http_min_size_bytes
+                1500, // http_max_size_bytes
+                800,  // file_min_size_bytes
+                1500, // file_max_size_bytes
+                35,   // voice_weight
+                35,   // http_weight
+                30    // file_weight
+            },
+            common_drop_config,
+            12.0
         },
         {
             "link_overload", true,
@@ -207,7 +229,7 @@ int main() {
                 60,   // http_weight
                 30    // file_weight
             },
-            make_drop_config(35, 50'000, 45, 70'000, 45, 90'000),
+            common_drop_config,
             10.0
         },
         {
@@ -227,7 +249,7 @@ int main() {
                 20,   // http_weight
                 5     // file_weight
             },
-            make_drop_config(45, 35'000, 35, 80'000, 30, 120'000),
+            common_drop_config,
             12.0
         },
         {
@@ -247,7 +269,7 @@ int main() {
                 70,   // http_weight
                 15    // file_weight
             },
-            make_drop_config(40, 40'000, 45, 75'000, 35, 110'000),
+            common_drop_config,
             12.0
         },
         {
@@ -267,7 +289,7 @@ int main() {
                 20,   // http_weight
                 70    // file_weight
             },
-            make_drop_config(35, 45'000, 40, 90'000, 60, 130'000),
+            common_drop_config,
             12.0
         }
     };

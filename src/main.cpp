@@ -18,6 +18,16 @@
 #include "weighted_round_robin_scheduler.h"
 
 namespace {
+    struct SummaryMetrics {
+        double total_packets{0.0};
+        double transmitted_packets{0.0};
+        double dropped_packets{0.0};
+        double drop_rate_percent{0.0};
+        double avg_wait_us{0.0};
+        double avg_sojourn_us{0.0};
+        double max_wait_us{0.0};
+    };
+
     struct SchedulerRunConfig {
         std::string name;
         bool enabled;
@@ -51,27 +61,77 @@ namespace {
              << "drop_rate_percent,avg_wait_us,avg_sojourn_us,max_wait_us\n";
     }
 
+    SummaryMetrics collect_summary_metrics(const netsim::StatisticsCollector& stats) {
+        const uint32_t transmitted_packets = stats.total_packets_ - stats.total_dropped_;
+        return SummaryMetrics{
+            static_cast<double>(stats.total_packets_),
+            static_cast<double>(transmitted_packets),
+            static_cast<double>(stats.total_dropped_),
+            stats.overall_drop_rate_percent(),
+            stats.overall_avg_wait_time_us(),
+            stats.overall_avg_sojourn_time_us(),
+            stats.overall_max_wait_time_us()
+        };
+    }
+
+    void accumulate_summary_metrics(SummaryMetrics& total,
+                                    const SummaryMetrics& sample) {
+        total.total_packets += sample.total_packets;
+        total.transmitted_packets += sample.transmitted_packets;
+        total.dropped_packets += sample.dropped_packets;
+        total.drop_rate_percent += sample.drop_rate_percent;
+        total.avg_wait_us += sample.avg_wait_us;
+        total.avg_sojourn_us += sample.avg_sojourn_us;
+        total.max_wait_us += sample.max_wait_us;
+    }
+
+    SummaryMetrics average_summary_metrics(const SummaryMetrics& total,
+                                           size_t run_count) {
+        const double divisor = static_cast<double>(run_count);
+        return SummaryMetrics{
+            total.total_packets / divisor,
+            total.transmitted_packets / divisor,
+            total.dropped_packets / divisor,
+            total.drop_rate_percent / divisor,
+            total.avg_wait_us / divisor,
+            total.avg_sojourn_us / divisor,
+            total.max_wait_us / divisor
+        };
+    }
+
     void append_summary_csv(const std::filesystem::path& summary_path,
                             const std::string& scenario_name,
                             const std::string& scheduler_name,
-                            const netsim::StatisticsCollector& stats) {
+                            const SummaryMetrics& metrics) {
         std::ofstream file(summary_path, std::ios::app);
         if (!file.is_open()) {
             throw std::runtime_error("Cannot open file: " + summary_path.string());
         }
 
-        const uint32_t transmitted_packets = stats.total_packets_ - stats.total_dropped_;
         file << scenario_name << ","
              << scheduler_name << ","
-             << stats.total_packets_ << ","
-             << transmitted_packets << ","
-             << stats.total_dropped_ << ","
-             << std::fixed << std::setprecision(2)
-             << stats.overall_drop_rate_percent() << ","
+             << std::fixed << std::setprecision(1)
+             << metrics.total_packets << ","
+             << metrics.transmitted_packets << ","
+             << metrics.dropped_packets << ","
+             << std::setprecision(2)
+             << metrics.drop_rate_percent << ","
              << std::setprecision(1)
-             << stats.overall_avg_wait_time_us() << ","
-             << stats.overall_avg_sojourn_time_us() << ","
-             << stats.overall_max_wait_time_us() << "\n";
+             << metrics.avg_wait_us << ","
+             << metrics.avg_sojourn_us << ","
+             << metrics.max_wait_us << "\n";
+    }
+
+    void print_average_summary(const SummaryMetrics& metrics) {
+        std::cout << "Average drop rate : "
+             << std::fixed << std::setprecision(2)
+                  << metrics.drop_rate_percent << "%\n";
+        std::cout << "Average wait      : "
+                  << std::fixed << std::setprecision(1)
+                  << metrics.avg_wait_us << " us\n";
+        std::cout << "Average sojourn   : "
+                  << std::fixed << std::setprecision(1)
+                  << metrics.avg_sojourn_us << " us\n";
     }
 
     void write_timeline_csv(const std::filesystem::path& timeline_path,
@@ -108,41 +168,57 @@ namespace {
 
     void run_scheduler(const ScenarioRunConfig& scenario_config,
                        const SchedulerRunConfig& scheduler_config,
-                       const std::vector<netsim::Packet>& packets,
                        const std::filesystem::path& summary_path,
-                       const std::filesystem::path& timeline_dir) {
-        auto scheduler = scheduler_config.create_scheduler();
-        netsim::Simulation simulation(
-            std::move(scheduler),
-            scenario_config.drop_config,
-            scenario_config.link_rate_mbps);
+                       const std::filesystem::path& timeline_dir,
+                       size_t run_count) {
+        SummaryMetrics total_metrics;
 
-        for (const netsim::Packet& packet : packets) {
-            simulation.add_packet(packet);
+        for (size_t run_index = 0; run_index < run_count; ++run_index) {
+            auto scheduler = scheduler_config.create_scheduler();
+            netsim::Simulation simulation(
+                std::move(scheduler),
+                scenario_config.drop_config,
+                scenario_config.link_rate_mbps);
+
+            auto run_profile = scenario_config.traffic_profile;
+            run_profile.seed += static_cast<uint32_t>(run_index);
+            const netsim::TrafficGenerator generator(run_profile);
+            const auto packets = generator.generate();
+
+            for (const netsim::Packet& packet : packets) {
+                simulation.add_packet(packet);
+            }
+
+            simulation.run();
+
+            netsim::StatisticsCollector stats;
+            for (const netsim::Packet& packet : simulation.packets()) {
+                stats.record(packet);
+            }
+
+            accumulate_summary_metrics(total_metrics, collect_summary_metrics(stats));
+
+            if (run_index == 0) {
+                const auto timeline_path =
+                    timeline_dir / ("timeline_" + scenario_config.name + "_" + scheduler_config.name + ".csv");
+                write_timeline_csv(timeline_path, scenario_config.name, scheduler_config.name, simulation.timeline());
+                std::cout << "Timeline written to " << timeline_path.string() << "\n";
+            }
         }
 
-        simulation.run();
-
-        netsim::StatisticsCollector stats;
-        for (const netsim::Packet& packet : simulation.packets()) {
-            stats.record(packet);
-        }
+        const SummaryMetrics average_metrics = average_summary_metrics(total_metrics, run_count);
 
         std::cout << "\n=== " << scenario_config.name << " / "
                   << scheduler_config.name << " ===\n";
-        stats.print_summary();
-        append_summary_csv(summary_path, scenario_config.name, scheduler_config.name, stats);
-
-        const auto timeline_path =
-            timeline_dir / ("timeline_" + scenario_config.name + "_" + scheduler_config.name + ".csv");
-        write_timeline_csv(timeline_path, scenario_config.name, scheduler_config.name, simulation.timeline());
-        std::cout << "Timeline written to " << timeline_path.string() << "\n";
+        print_average_summary(average_metrics);
+        append_summary_csv(summary_path, scenario_config.name, scheduler_config.name, average_metrics);
     }
 }
 
 int main() {
     const std::filesystem::path summary_path = "summary_results.csv";
     const std::filesystem::path timeline_dir = "timeline_results";
+    const size_t runs_per_scheduler = 10;
     std::filesystem::create_directories(timeline_dir);
     initialize_summary_csv(summary_path);
     const netsim::DropConfig common_drop_config =
@@ -299,19 +375,23 @@ int main() {
             continue;
         }
 
-        const netsim::TrafficGenerator generator(scenario_config.traffic_profile);
-        const auto packets = generator.generate();
-
         std::cout << "\n### Scenario: " << scenario_config.name << " ###\n";
-        std::cout << "Generated " << packets.size() << " packets\n";
+        std::cout << "Generated " << scenario_config.traffic_profile.packet_count
+                  << " packets per run\n";
         std::cout << "Link rate: " << scenario_config.link_rate_mbps << " Mbps\n";
+        std::cout << "Runs per scheduler: " << runs_per_scheduler << "\n";
 
         for (const SchedulerRunConfig& scheduler_config : scheduler_runs) {
             if (!scheduler_config.enabled) {
                 continue;
             }
 
-            run_scheduler(scenario_config, scheduler_config, packets, summary_path, timeline_dir);
+            run_scheduler(
+                scenario_config,
+                scheduler_config,
+                summary_path,
+                timeline_dir,
+                runs_per_scheduler);
         }
     }
 

@@ -6,11 +6,6 @@
  */
 #include "statistics.h"
 
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <stdexcept>
-
 namespace netsim {
     double ClassStats::drop_rate_percent() const {
         if (total_packets == 0) return 0.0;
@@ -78,62 +73,4 @@ namespace netsim {
     double StatisticsCollector::overall_max_wait_time_us() const {
         return max_wait_time_us_;
     }
-
-    void StatisticsCollector::print_summary() const {
-        std::cout << "\n";
-        std::cout << std::left
-                  << std::setw(8)  << "Class"
-                  << std::setw(8)  << "Total"
-                  << std::setw(8)  << "Sent"
-                  << std::setw(9)  << "Dropped"
-                  << std::setw(9)  << "Drop%"
-                  << std::setw(13) << "AvgWait(us)"
-                  << std::setw(13) << "MaxWait(us)"
-                  << "\n";
-
-        for (const auto& cs : class_stats_) {
-            std::cout << std::left
-                      << std::setw(8)  << qos_name(cs.qos_class)
-                      << std::setw(8)  << cs.total_packets
-                      << std::setw(8)  << cs.transmitted_packets
-                      << std::setw(9)  << cs.dropped_packets
-                      << std::setw(9)  << std::fixed << std::setprecision(1)
-                                       << cs.drop_rate_percent()
-                      << std::setw(13) << std::fixed << std::setprecision(1)
-                                       << cs.avg_wait_time_us
-                      << std::setw(13) << std::fixed << std::setprecision(1)
-                                       << cs.max_wait_time_us
-                      << "\n";
-        }
-
-        std::cout << "Overall drop rate : "
-                  << std::fixed << std::setprecision(2)
-                  << overall_drop_rate_percent() << "%\n";
-        std::cout << "Overall avg wait  : "
-                  << std::fixed << std::setprecision(1)
-                  << overall_avg_wait_time_us() << " us\n";
-    }
-
-    void StatisticsCollector::write_csv(const std::string& filename) const {
-        std::ofstream file(filename);
-        if (!file.is_open()) {
-            throw std::runtime_error("Cannot open file: " + filename);
-        }
-
-        file << "class,total,transmitted,dropped,drop_rate_pct,"
-             << "avg_wait_us,max_wait_us,avg_sojourn_us\n";
-
-        for (const auto& cs : class_stats_) {
-            file << qos_name(cs.qos_class)    << ","
-                 << cs.total_packets          << ","
-                 << cs.transmitted_packets    << ","
-                 << cs.dropped_packets        << ","
-                 << std::fixed << std::setprecision(2)
-                 << cs.drop_rate_percent()    << ","
-                 << cs.avg_wait_time_us       << ","
-                 << cs.max_wait_time_us       << ","
-                 << cs.avg_sojourn_time_us    << "\n";
-        }
-    }
-
 }

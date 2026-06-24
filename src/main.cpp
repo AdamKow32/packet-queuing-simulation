@@ -222,7 +222,7 @@ int main() {
     std::filesystem::create_directories(timeline_dir);
     initialize_summary_csv(summary_path);
     const netsim::DropConfig common_drop_config =
-        make_drop_config(40, 40'000, 45, 75'000, 50, 110'000);
+        make_drop_config(128, 20'000, 192, 80'000, 256, 300'000);
 
     const std::vector<SchedulerRunConfig> scheduler_runs{
         {
@@ -251,122 +251,122 @@ int main() {
         {
             "balanced", true,
             netsim::TrafficProfile{
-                180,  // packet_count
+                8000, // packet_count
                 42,   // seed
-                350,  // min_interarrival_us
-                700,  // max_interarrival_us
+                85,   // min_interarrival_us
+                125,  // max_interarrival_us
                 80,   // voice_min_size_bytes
                 200,  // voice_max_size_bytes
                 500,  // http_min_size_bytes
                 1500, // http_max_size_bytes
-                800,  // file_min_size_bytes
+                1000, // file_min_size_bytes
                 1500, // file_max_size_bytes
                 35,   // voice_weight
                 35,   // http_weight
                 30    // file_weight
             },
             common_drop_config,
-            20.0
+            100.0
         },
         {
             "medium_load", true,
             netsim::TrafficProfile{
-                220,  // packet_count
+                8000, // packet_count
                 52,   // seed
-                125,  // min_interarrival_us
-                285,  // max_interarrival_us
+                72,   // min_interarrival_us
+                98,   // max_interarrival_us
                 80,   // voice_min_size_bytes
                 200,  // voice_max_size_bytes
                 500,  // http_min_size_bytes
                 1500, // http_max_size_bytes
-                800,  // file_min_size_bytes
+                1000, // file_min_size_bytes
                 1500, // file_max_size_bytes
                 35,   // voice_weight
                 35,   // http_weight
                 30    // file_weight
             },
             common_drop_config,
-            12.0
+            100.0
         },
         {
             "link_overload", true,
             netsim::TrafficProfile{
-                240,  // packet_count
+                10000, // packet_count
                 43,   // seed
-                35,   // min_interarrival_us
-                100,  // max_interarrival_us
+                63,   // min_interarrival_us
+                74,   // max_interarrival_us
                 80,   // voice_min_size_bytes
                 200,  // voice_max_size_bytes
                 500,  // http_min_size_bytes
                 1500, // http_max_size_bytes
-                800,  // file_min_size_bytes
+                1000, // file_min_size_bytes
                 1500, // file_max_size_bytes
                 20,   // voice_weight
-                60,   // http_weight
-                30    // file_weight
+                45,   // http_weight
+                35    // file_weight
             },
             common_drop_config,
-            10.0
+            100.0
         },
         {
-            "voice_dominance", true,
+            "overload_voice_dominance", true,
             netsim::TrafficProfile{
-                220,  // packet_count
+                10000, // packet_count
                 44,   // seed
-                45,   // min_interarrival_us
-                130,  // max_interarrival_us
+                30,   // min_interarrival_us
+                38,   // max_interarrival_us
                 80,   // voice_min_size_bytes
                 200,  // voice_max_size_bytes
                 500,  // http_min_size_bytes
                 1500, // http_max_size_bytes
-                800,  // file_min_size_bytes
+                1000, // file_min_size_bytes
                 1500, // file_max_size_bytes
-                75,   // voice_weight
+                70,   // voice_weight
                 20,   // http_weight
-                5     // file_weight
+                10    // file_weight
             },
             common_drop_config,
-            12.0
+            100.0
         },
         {
-            "http_dominance", true,
+            "overload_http_dominance", true,
             netsim::TrafficProfile{
-                220,  // packet_count
+                10000, // packet_count
                 46,   // seed
-                45,   // min_interarrival_us
-                130,  // max_interarrival_us
+                62,   // min_interarrival_us
+                74,   // max_interarrival_us
                 80,   // voice_min_size_bytes
                 200,  // voice_max_size_bytes
                 500,  // http_min_size_bytes
                 1500, // http_max_size_bytes
-                800,  // file_min_size_bytes
+                1000, // file_min_size_bytes
                 1500, // file_max_size_bytes
                 15,   // voice_weight
                 70,   // http_weight
                 15    // file_weight
             },
             common_drop_config,
-            12.0
+            100.0
         },
         {
-            "file_dominance", true,
+            "overload_file_dominance", true,
             netsim::TrafficProfile{
-                220,  // packet_count
+                9500, // packet_count
                 45,   // seed
-                55,   // min_interarrival_us
-                150,  // max_interarrival_us
+                69,   // min_interarrival_us
+                82,   // max_interarrival_us
                 80,   // voice_min_size_bytes
                 200,  // voice_max_size_bytes
                 500,  // http_min_size_bytes
                 1500, // http_max_size_bytes
-                800,  // file_min_size_bytes
+                1000, // file_min_size_bytes
                 1500, // file_max_size_bytes
                 10,   // voice_weight
                 20,   // http_weight
                 70    // file_weight
             },
             common_drop_config,
-            12.0
+            100.0
         }
     };
 

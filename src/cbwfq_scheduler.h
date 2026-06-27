@@ -9,7 +9,7 @@
 namespace netsim {
     class CbwfqScheduler final : public IScheduler {
     public:
-        explicit CbwfqScheduler(std::array<uint32_t, NUM_QOS_CLASSES> weights = {50U, 30U, 20U});
+        explicit CbwfqScheduler(std::array<uint32_t, NUM_QOS_CLASSES> weights = {4U, 2U, 1U});
 
         using IScheduler::enqueue;
         void enqueue(uint32_t packet_id, QoSClass qos_class, uint32_t size_bytes) override;
@@ -24,7 +24,9 @@ namespace netsim {
 
         std::array<std::queue<QueuedPacket>, NUM_QOS_CLASSES> queues_{};
         std::array<uint32_t, NUM_QOS_CLASSES> weights_{};
+
         std::array<double, NUM_QOS_CLASSES> class_finish_times_{};
+
         double virtual_time_{0.0};
     };
 }

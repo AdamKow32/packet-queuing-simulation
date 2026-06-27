@@ -1,6 +1,7 @@
 #include "cbwfq_scheduler.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 
@@ -15,16 +16,20 @@ namespace netsim {
     }
 
     void CbwfqScheduler::enqueue(uint32_t packet_id, QoSClass qos_class, uint32_t size_bytes) {
-        if (!has_packets()) {
-            virtual_time_ = 0.0;
-            class_finish_times_.fill(0.0);
-        }
-
         const std::size_t cls_index = static_cast<std::size_t>(qos_class);
-        const double packet_size = static_cast<double>(std::max(size_bytes, 1U));
-        const double weight = static_cast<double>(weights_[cls_index]);
-        const double start_time = std::max(class_finish_times_[cls_index], virtual_time_);
-        const double finish_time = start_time + packet_size / weight;
+
+        const double packet_bits =
+            8.0 * static_cast<double>(std::max(size_bytes, 1U));
+
+        const double weight =
+            static_cast<double>(weights_[cls_index]);
+
+
+        const double start_time =
+            std::max(class_finish_times_[cls_index], virtual_time_);
+
+        const double finish_time =
+            start_time + packet_bits / weight;
 
         class_finish_times_[cls_index] = finish_time;
         queues_[cls_index].push(QueuedPacket{packet_id, finish_time});
@@ -50,9 +55,17 @@ namespace netsim {
 
         for (std::size_t cls_index = 0; cls_index < queues_.size(); ++cls_index) {
             const auto& queue = queues_[cls_index];
-            if (!queue.empty() && queue.front().virtual_finish < best_finish) {
+
+            if (queue.empty()) {
+                continue;
+            }
+
+            const double candidate_finish = queue.front().virtual_finish;
+
+            if (candidate_finish < best_finish ||
+                (std::abs(candidate_finish - best_finish) < 1e-9 && cls_index < best_class)) {
                 best_class = cls_index;
-                best_finish = queue.front().virtual_finish;
+                best_finish = candidate_finish;
             }
         }
 

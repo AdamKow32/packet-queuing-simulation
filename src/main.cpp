@@ -26,6 +26,8 @@ namespace {
         double avg_wait_us{0.0};
         double avg_sojourn_us{0.0};
         double max_wait_us{0.0};
+        double fairness_index{0.0};
+        double objective_score{0.0};
     };
 
     struct SchedulerRunConfig {
@@ -58,7 +60,8 @@ namespace {
     void initialize_summary_csv(const std::filesystem::path& summary_path) {
         std::ofstream file(summary_path, std::ios::trunc);
         file << "scenario,scheduler,total_packets,transmitted_packets,dropped_packets,"
-             << "drop_rate_percent,avg_wait_us,avg_sojourn_us,max_wait_us\n";
+             << "drop_rate_percent,avg_wait_us,avg_sojourn_us,max_wait_us,"
+             << "fairness_index,objective_score\n";
     }
 
     SummaryMetrics collect_summary_metrics(const netsim::StatisticsCollector& stats) {
@@ -70,7 +73,9 @@ namespace {
             stats.overall_drop_rate_percent(),
             stats.overall_avg_wait_time_us(),
             stats.overall_avg_sojourn_time_us(),
-            stats.overall_max_wait_time_us()
+            stats.overall_max_wait_time_us(),
+            stats.jain_fairness_index(),
+            stats.objective_score()
         };
     }
 
@@ -83,6 +88,8 @@ namespace {
         total.avg_wait_us += sample.avg_wait_us;
         total.avg_sojourn_us += sample.avg_sojourn_us;
         total.max_wait_us += sample.max_wait_us;
+        total.fairness_index += sample.fairness_index;
+        total.objective_score += sample.objective_score;
     }
 
     SummaryMetrics average_summary_metrics(const SummaryMetrics& total,
@@ -95,7 +102,9 @@ namespace {
             total.drop_rate_percent / divisor,
             total.avg_wait_us / divisor,
             total.avg_sojourn_us / divisor,
-            total.max_wait_us / divisor
+            total.max_wait_us / divisor,
+            total.fairness_index / divisor,
+            total.objective_score / divisor
         };
     }
 
@@ -119,7 +128,11 @@ namespace {
              << std::setprecision(1)
              << metrics.avg_wait_us << ","
              << metrics.avg_sojourn_us << ","
-             << metrics.max_wait_us << "\n";
+             << metrics.max_wait_us << ","
+             << std::setprecision(4)
+             << metrics.fairness_index << ","
+             << std::setprecision(3)
+             << metrics.objective_score << "\n";
     }
 
     void print_average_summary(const SummaryMetrics& metrics) {
@@ -132,6 +145,12 @@ namespace {
         std::cout << "Average sojourn   : "
                   << std::fixed << std::setprecision(1)
                   << metrics.avg_sojourn_us << " us\n";
+        std::cout << "Fairness index    : "
+                  << std::fixed << std::setprecision(4)
+                  << metrics.fairness_index << "\n";
+        std::cout << "Objective score   : "
+                  << std::fixed << std::setprecision(3)
+                  << metrics.objective_score << "\n";
     }
 
     void write_timeline_csv(const std::filesystem::path& timeline_path,

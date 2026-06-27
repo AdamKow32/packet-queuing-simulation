@@ -1,10 +1,5 @@
-/**
- * @file statistics.cpp
- * @brief Implementation of StatisticsCollector
- *
- * @date 15.04.2026
- */
 #include "statistics.h"
+
 
 namespace netsim {
     double ClassStats::drop_rate_percent() const {
@@ -72,5 +67,50 @@ namespace netsim {
 
     double StatisticsCollector::overall_max_wait_time_us() const {
         return max_wait_time_us_;
+    }
+
+    double StatisticsCollector::jain_fairness_index() const {
+        double sum = 0.0;
+        double sum_squares = 0.0;
+
+        for (const ClassStats& cs : class_stats_) {
+            const double x = static_cast<double>(cs.transmitted_packets);
+            sum += x;
+            sum_squares += x * x;
+        }
+
+        if (sum_squares == 0.0) {
+            return 0.0;
+        }
+
+        return (sum * sum) /
+               (static_cast<double>(NUM_QOS_CLASSES) * sum_squares);
+    }
+
+    double StatisticsCollector::objective_score(double wait_weight,
+                                                double loss_weight,
+                                                double max_wait_weight,
+                                                double unfairness_weight,
+                                                double reference_wait_us) const {
+        if (reference_wait_us <= 0.0) {
+            reference_wait_us = 1.0;
+        }
+
+        const double normalized_wait =
+            overall_avg_wait_time_us() / reference_wait_us;
+
+        const double normalized_loss =
+            overall_drop_rate_percent() / 100.0;
+
+        const double normalized_max_wait =
+            overall_max_wait_time_us() / reference_wait_us;
+
+        const double fairness_penalty =
+            1.0 - jain_fairness_index();
+
+        return wait_weight * normalized_wait
+             + loss_weight * normalized_loss
+             + max_wait_weight * normalized_max_wait
+             + unfairness_weight * fairness_penalty;
     }
 }

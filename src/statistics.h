@@ -33,12 +33,7 @@ namespace netsim {
         double overall_max_wait_time_us() const;
 
         double jain_fairness_index() const;
-
-        double objective_score(double wait_weight = 0.25,
-                               double loss_weight = 0.45,
-                               double max_wait_weight = 0.20,
-                               double unfairness_weight = 0.10,
-                               double reference_wait_us = 100000.0) const;
+        double objective_score() const;
 
         std::array<ClassStats, NUM_QOS_CLASSES> class_stats_ = {{
             ClassStats{QoSClass::Voice},

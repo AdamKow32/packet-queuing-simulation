@@ -292,21 +292,106 @@ namespace netsim {
     }
 
     double Simulation::fairness_so_far() const {
-        double sum = 0.0;
-        double sum_squares = 0.0;
+        constexpr std::array<double, NUM_QOS_CLASSES> class_weights{
+            4.0,
+            2.0,
+            1.0
+        };
 
-        for (const uint32_t transmitted : transmitted_by_class_so_far_) {
-            const double x = static_cast<double>(transmitted);
-            sum += x;
-            sum_squares += x * x;
+        std::array<double, NUM_QOS_CLASSES> demand{};
+        std::array<double, NUM_QOS_CLASSES> served{};
+        std::array<double, NUM_QOS_CLASSES> ideal{};
+        std::array<bool, NUM_QOS_CLASSES> active{};
+
+        double total_served = 0.0;
+
+        for (std::size_t i = 0; i < NUM_QOS_CLASSES; ++i) {
+            demand[i] =
+                static_cast<double>(generated_by_class_so_far_[i]);
+
+            served[i] =
+                static_cast<double>(transmitted_by_class_so_far_[i]);
+
+            total_served += served[i];
+
+            if (demand[i] > 0.0) {
+                active[i] = true;
+            }
         }
 
-        if (sum_squares == 0.0) {
+        if (total_served == 0.0) {
             return 0.0;
         }
 
-        return (sum * sum)
-             / (static_cast<double>(NUM_QOS_CLASSES) * sum_squares);
+        double remaining_capacity = total_served;
+
+        while (remaining_capacity > 1e-9) {
+            double active_weight_sum = 0.0;
+            std::size_t active_count = 0;
+
+            for (std::size_t i = 0; i < NUM_QOS_CLASSES; ++i) {
+                if (active[i]) {
+                    active_weight_sum += class_weights[i];
+                    active_count++;
+                }
+            }
+
+            if (active_count == 0 || active_weight_sum == 0.0) {
+                break;
+            }
+
+            const double round_capacity = remaining_capacity;
+            bool capped_any_class = false;
+
+            for (std::size_t i = 0; i < NUM_QOS_CLASSES; ++i) {
+                if (!active[i]) {
+                    continue;
+                }
+
+                const double weighted_allocation =
+                    round_capacity * class_weights[i] / active_weight_sum;
+
+                if (weighted_allocation >= demand[i]) {
+                    ideal[i] = demand[i];
+                    remaining_capacity -= demand[i];
+                    active[i] = false;
+                    capped_any_class = true;
+                }
+            }
+
+            if (!capped_any_class) {
+                for (std::size_t i = 0; i < NUM_QOS_CLASSES; ++i) {
+                    if (active[i]) {
+                        ideal[i] =
+                            remaining_capacity * class_weights[i] / active_weight_sum;
+                    }
+                }
+
+                remaining_capacity = 0.0;
+            }
+        }
+
+        double sum = 0.0;
+        double sum_squares = 0.0;
+        double active_classes = 0.0;
+
+        for (std::size_t i = 0; i < NUM_QOS_CLASSES; ++i) {
+            if (ideal[i] <= 0.0) {
+                continue;
+            }
+
+            const double ratio = served[i] / ideal[i];
+
+            sum += ratio;
+            sum_squares += ratio * ratio;
+            active_classes += 1.0;
+        }
+
+        if (active_classes == 0.0 || sum_squares == 0.0) {
+            return 0.0;
+        }
+
+        return (sum * sum) / (active_classes * sum_squares);
     }
 
     double Simulation::objective_score_so_far() const {

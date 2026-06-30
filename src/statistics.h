@@ -1,6 +1,8 @@
 #pragma once
+
 #include <array>
 #include <string>
+
 #include "packet.h"
 
 namespace netsim {
@@ -29,6 +31,9 @@ namespace netsim {
         double overall_avg_wait_time_us() const;
         double overall_avg_sojourn_time_us() const;
         double overall_max_wait_time_us() const;
+
+        double jain_fairness_index() const;
+        double objective_score() const;
 
         std::array<ClassStats, NUM_QOS_CLASSES> class_stats_ = {{
             ClassStats{QoSClass::Voice},
